@@ -1,87 +1,85 @@
-/*
-  Press button, light LED.
-  ------------------------------------------------------------------------------
-  
-  [ See pinout: https://goo.gl/ijL0of ]
-  
-  Turns on and off a light emitting diode(LED) connected to digital
-  pin 2, when pressing a pushbutton attached to pin 3.
 
-  [ LED_PIN ]    -> [Resistor 240R]   -> [LED] -> [Ground]
-  [ BUTTON_PIN ] -> [ Button ]     -> [Vcc]
-  [ BUTTON_PIN ] -> [Resistor 10k] -> [Ground]
-       
-*/
+const uint8_t _pin_DVR = 4;      // PB4
+int state_pin_DVR = LOW;
+const uint8_t _pin_VRX = 3;      // PB3
+int state_pin_VRX = HIGH;
+const uint8_t _pin_BTN = 2;      // PB2
 
-const uint8_t buttonPin = 3;  // the number of the pushbutton pin
-const uint8_t ledPin = 2;  // the number of the LED pin
+const uint8_t _pin_LED_DVR = 1;  // PB1
+int state_LED_DVR = HIGH;
+const uint8_t _pin_LED_VRX = 0;  // PB0
+int state_LED_VRX = LOW;
 
-int ledState = HIGH;        // the current state of the output pin
-int buttonState;            // the current reading from the input pin
-int lastButtonState = LOW;  // the previous reading from the input pin
+int buttonState;                 // the current reading from the input pin
+int lastButtonState = LOW;       // the previous reading from the input pin
 
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
-/*
-таки шо нам нада.
-при включении включаем основной канал (на котором будет пайп от VRX и до контроллера дисплея)
-при нажатии кнопки переключаем канал на следующий, отключая предварительно предыдущий.
-для каждого канала свой LED
-*/
-
-int myPins[] = {2, 4, 8, 3, 6, 4};
-
-
 void setup() {
-  pinMode(ledPin, OUTPUT);
+  pinMode(_pin_LED_DVR, OUTPUT);
+  pinMode(_pin_LED_VRX, OUTPUT);
 
-  pinMode(buttonPin, INPUT);
+  pinMode(_pin_BTN, INPUT);
 
-  // set initial LED state
-  digitalWrite(ledPin, ledState);
-}
-
-void loop() {
-  if (digitalRead(buttonPin) == HIGH) {
-    digitalWrite(ledPin, HIGH);
-  } else {
-    digitalWrite(ledPin, LOW);
-  }
+  // enable led & open the channel
+  digitalWrite(_pin_LED_DVR, HIGH);
+  digitalWrite(_pin_LED_VRX, LOW);
+  digitalWrite(_pin_VRX, HIGH);
 }
 
 
 void loop() {
-  // read the state of the switch into a local variable:
-  int reading = digitalRead(buttonPin);
 
-  // check to see if you just pressed the button
-  // (i.e. the input went from LOW to HIGH), and you've waited long enough
-  // since the last press to ignore any noise:
+  int reading = digitalRead(_pin_BTN);
 
-  // If the switch changed, due to noise or pressing:
   if (reading != lastButtonState) {
     // reset the debouncing timer
     lastDebounceTime = millis();
   }
 
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer than the debounce
-    // delay, so take it as the actual current state:
-
-    // if the button state has changed:
+    
     if (reading != buttonState) {
       buttonState = reading;
 
-      // only toggle the LED if the new button state is HIGH
       if (buttonState == HIGH) {
-        ledState = !ledState;
+
+        if (state_pin_VRX == HIGH) {
+          // disable VideoRX
+          state_pin_VRX = LOW;
+          state_LED_VRX = LOW;
+
+          digitalWrite(_pin_VRX, state_pin_VRX);
+          digitalWrite(_pin_LED_VRX, state_LED_VRX);
+          
+          // enable DVR
+          state_pin_DVR = HIGH;
+          state_LED_DVR = HIGH;
+          
+          digitalWrite(_pin_DVR, state_pin_DVR);
+          digitalWrite(_pin_LED_DVR, state_LED_DVR);
+
+        } else {
+
+          // disable DVR
+          state_pin_DVR = LOW;
+          state_LED_DVR = LOW;
+          
+          digitalWrite(_pin_DVR, state_pin_DVR);
+          digitalWrite(_pin_LED_DVR, state_LED_DVR);
+
+          // enable VideoRX
+          state_pin_VRX = HIGH;
+          state_LED_VRX = HIGH;
+
+          digitalWrite(_pin_VRX, state_pin_VRX);
+          digitalWrite(_pin_LED_VRX, state_LED_VRX);
+          
+        }
       }
     }
   }
-
-  // set the LED:
-  digitalWrite(ledPin, ledState);
 
   // save the reading. Next time through the loop, it'll be the lastButtonState:
   lastButtonState = reading;
