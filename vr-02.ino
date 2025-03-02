@@ -1,86 +1,84 @@
-// pins DVR
-const uint8_t _pin_DVR = 4;      // PB4
-const uint8_t _pin_DVR_LED = 1;  // PB1
 
-// state DVR
-int state_pin_DVR = LOW;
+#define BOARD_VERSION 1
 
-// pins VideoRX
-const uint8_t _pin_VRX = 3;      // PB3
-const uint8_t _pin_VRX_LED = 0;  // PB0
+#if BOARD_VERSION == 1
 
-// state VideoRX
-int state_pin_VRX = HIGH;
+#define VRX_PIN 3
+#define VRX_LED 1
+#define DVR_PIN 4
+#define DVR_LED 0
+#define BTN_PIN 2
 
-// Button pin
-const uint8_t _pin_BTN = 2;      // PB2
+#elif BOARD_VERSION == 2
 
-int buttonState;                 // the current reading from the input pin
-int lastButtonState = LOW;       // the previous reading from the input pin
+#define VRX_PIN = 3;
+#define VRX_LED 1
+#define DVR_PIN 4
+#define DVR_LED 2
+#define BTN_PIN 0
 
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+#endif
+
+const uint8_t buttonPin = BTN_PIN;  // the number of the pushbutton pin
+const uint8_t debounceDelay = 100;  // milliseconds the button must be in a stable state
+
+uint8_t buttonState = HIGH;     // the current reading from the input pin,  initial value = default (pullup, so high)
+uint8_t lastButtonState = LOW;  // the previous reading from the input pin, initial value = default (pullup, so high)
+
+uint32_t lastDebounceTime = 0;  // the last time the output pin was toggled
+uint8_t count = 0;
+
+
+uint8_t vrx_status = HIGH;
+uint8_t dvr_status = LOW;
+
+const uint8_t vrx_pin = VRX_PIN;
+const uint8_t vrx_led = VRX_LED;
+
+const uint8_t dvr_pin = DVR_PIN;
+const uint8_t dvr_led = DVR_LED;
+
 
 void setup() {
-  pinMode(_pin_DVR_LED, OUTPUT);
-  pinMode(_pin_VRX_LED, OUTPUT);
-
-  pinMode(_pin_BTN, INPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(dvr_led, OUTPUT);
+  pinMode(dvr_pin, OUTPUT);
+  pinMode(vrx_led, OUTPUT);
+  pinMode(vrx_pin, OUTPUT);
 
   // enable led for default [VRX], enable LED & open the channel
-  digitalWrite(_pin_VRX_LED, state_pin_VRX);
-  digitalWrite(_pin_VRX, state_pin_VRX);
-
-  digitalWrite(_pin_DVR_LED, state_pin_DVR);  
-  digitalWrite(_pin_DVR, state_pin_DVR);
 }
-
 
 void loop() {
 
-  int reading = digitalRead(_pin_BTN);
-
-  if (reading != lastButtonState) {
-    // reset the debouncing timer
+  if (digitalRead(buttonPin) != lastButtonState) {
+    lastButtonState = !lastButtonState;  // Switched states, HIGH becomes LOW, or LOW becomes HIGH
     lastDebounceTime = millis();
-  }
+  } else if ((millis() - lastDebounceTime) > debounceDelay && buttonState != lastButtonState) {
+    buttonState = lastButtonState;
 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    
-    if (reading != buttonState) {
-      buttonState = reading;
+    // On the rising edge, that is when you release the button, toggle the LED
+    if (buttonState == HIGH) {
 
-      if (buttonState == HIGH) {
-
-        if (state_pin_VRX == HIGH) {
-         
-          // disable VideoRX
-          state_pin_VRX = LOW;
-          digitalWrite(_pin_VRX, state_pin_VRX);
-          digitalWrite(_pin_VRX_LED, state_pin_VRX);
-          
-          // enable DVR
-          state_pin_DVR = HIGH;
-          digitalWrite(_pin_DVR, state_pin_DVR);
-          digitalWrite(_pin_DVR_LED, state_pin_DVR);
-
-        } else {
-
-          // disable DVR
-          state_pin_DVR = LOW;
-          digitalWrite(_pin_DVR, state_pin_DVR);
-          digitalWrite(_pin_DVR_LED, state_pin_DVR);
-
-          // enable VideoRX
-          state_pin_VRX = HIGH;
-          digitalWrite(_pin_VRX, state_pin_VRX);
-          digitalWrite(_pin_VRX_LED, state_pin_VRX);
-          
-        }
-      }
+      vrx_status = !vrx_status;
+      dvr_status = !dvr_status;
     }
   }
 
-  // save the reading. Next time through the loop, it'll be the lastButtonState:
-  lastButtonState = reading;
+  if (dvr_status == HIGH) {
+
+    digitalWrite(vrx_pin, vrx_status);
+    digitalWrite(vrx_led, vrx_status);
+
+    digitalWrite(dvr_pin, dvr_status);
+    digitalWrite(dvr_led, dvr_status);
+
+  } else {
+
+    digitalWrite(dvr_pin, dvr_status);
+    digitalWrite(dvr_led, dvr_status);
+
+    digitalWrite(vrx_pin, vrx_status);
+    digitalWrite(vrx_led, vrx_status);
+  }
 }
